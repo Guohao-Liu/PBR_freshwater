@@ -1,4 +1,4 @@
-# Biodiversity–productivity relationships in freshwater ecosystems
+# Productivity–biodiversity relationships in freshwater ecosystems
 
 ## Introduction
 
