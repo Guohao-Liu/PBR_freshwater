@@ -7,6 +7,10 @@ dataset includes species abundance data, functional trait information, geographi
 especially total phosphorus (TP). Data sources include publicly available databases (e.g., Distance Decay 2.0, National 
 Aquatic Resource Surveys, Stream Diatom Dataset) and contributed unpublished datasets.
 
+# Repository structure
+
+- `000_input_file/`: Input data used for all analyses in the manuscript.
+- `000_scripts/`: Scripts used to reproduce all analyses, figures, and tables in the manuscript.
 
 # Raw data
 
