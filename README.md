@@ -1,21 +1,28 @@
-# Introduction
+# Biodiversity–productivity relationships in freshwater ecosystems
 
-This project supports a global-scale study of biodiversity–productivity relationships (BPRs) across freshwater ecosystems. 
-We compiled 81 harmonized datasets spanning over 30,000 sites from lakes, reservoirs, streams, and rivers, representing six
-aquatic taxonomic groups: phytoplankton, benthic diatoms, aquatic plants, zooplankton, macroinvertebrates, and fish. Each 
-dataset includes species abundance data, functional trait information, geographic coordinates, and environmental variables, 
-especially total phosphorus (TP). Data sources include publicly available databases (e.g., Distance Decay 2.0, National 
-Aquatic Resource Surveys, Stream Diatom Dataset) and contributed unpublished datasets.
+## Introduction
 
-# Repository structure
+This repository supports a global-scale study of biodiversity–productivity relationships (BPRs) across freshwater ecosystems. We compiled 81 harmonized datasets spanning over 30,000 sites from lakes, reservoirs, streams, and rivers, representing six aquatic taxonomic groups: phytoplankton, benthic diatoms, aquatic plants, zooplankton, macroinvertebrates, and fish. Each dataset includes species abundance data, functional trait information, geographic coordinates, and environmental variables, especially total phosphorus (TP). Data sources include publicly available databases, such as Distance Decay 2.0, National Aquatic Resource Surveys, and the Stream Diatom Dataset, as well as contributed unpublished datasets.
+
+## Repository structure
 
 - `000_input_file/`: Input data used for all analyses in the manuscript.
-- `000_scripts/`: Scripts used to reproduce all analyses, figures, and tables in the manuscript.
+- `000_scripts/`: Scripts used to reproduce the analyses, figures, and tables presented in the manuscript.
 
-# Raw data
+## Raw data
 
-Some raw datasets was derived from the following sources:
+Some raw datasets were derived from the following sources:
 
-The authors declare that some datasets were compiled from Distance decay 2.0 (https://zenodo.org/records/6406911), National
-Aquatic Resource Surveys (https://www.epa.gov/national-aquatic-resource-surveys), and Stream diatom worldwide dataset 
-(https://doi.org/10.57745/MCKQ7G).
+- Distance Decay 2.0: https://zenodo.org/records/6406911
+- National Aquatic Resource Surveys: https://www.epa.gov/national-aquatic-resource-surveys
+- Stream Diatom Worldwide Dataset: https://doi.org/10.57745/MCKQ7G
+
+Additional datasets were contributed by collaborators and are subject to their respective data-sharing agreements.
+
+## Reproducibility
+
+The scripts in `000_scripts/` reproduce the analyses, figures, and tables presented in the manuscript. Users should first download or prepare the input files in `000_input_file/`, then run the scripts in the order indicated by their filenames or internal comments.
+
+## Citation
+
+If you use this repository, please cite the associated manuscript and the original data sources listed above.
