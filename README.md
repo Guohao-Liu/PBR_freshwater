@@ -7,15 +7,8 @@ dataset includes species abundance data, functional trait information, geographi
 especially total phosphorus (TP). Data sources include publicly available databases (e.g., Distance Decay 2.0, National 
 Aquatic Resource Surveys, Stream Diatom Dataset) and contributed unpublished datasets.
 
-# Discription
-File: Fig. x.RMD  
-Description: All R scripts used for data processing, analysis, and visualization in the study.
-
-File: processed_data.zip  
-Description: R-processed process files.
 
 # Raw data
-All raw data are stored in Figshare and will be made public when the manuscript is accepted for publication.
 
 Some raw datasets was derived from the following sources:
 
