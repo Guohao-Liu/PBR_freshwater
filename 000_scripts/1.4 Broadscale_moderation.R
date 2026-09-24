@@ -1,5 +1,3 @@
-
-
 suppressPackageStartupMessages({
   library(readxl)
   library(dplyr)
@@ -34,28 +32,34 @@ if (!file.exists(input_file)) {
 }
 
 response_metadata <- tribble(
-  ~response,     ~response_label,
-  "Richness_z",  "Taxonomic richness",
-  "FRic_z",      "Functional richness"
+  ~response_raw, ~response,      ~response_label,
+  "Richness",    "Richness_z",   "Taxonomic richness",
+  "FRic",        "FRic_z",       "Functional richness"
 )
 
 moderator_metadata <- tribble(
-  ~moderator,                      ~moderator_label,              ~moderator_type,
-  "Temperature_z",                 "Annual mean temperature",     "continuous",
-  "Temperature_seasonality_z",     "Temperature seasonality",     "continuous",
-  "Precipitation_z",                "Annual precipitation",        "continuous",
-  "Precipitation_seasonality_z",   "Precipitation seasonality",   "continuous",
-  "Elevation_z",                    "Elevation",                   "continuous",
-  "Landuse_class",                 "Land use",                    "factor"
+  ~moderator,                    ~moderator_label,              ~moderator_type,
+  "Temperature_z",               "Annual mean temperature",     "continuous",
+  "Temperature_seasonality_z",   "Temperature seasonality",     "continuous",
+  "Precipitation_z",              "Annual precipitation",        "continuous",
+  "Precipitation_seasonality_z", "Precipitation seasonality",   "continuous",
+  "Elevation_z",                  "Elevation",                   "continuous",
+  "Landuse_class",               "Land use",                    "factor"
 )
 
 continuous_curve_values <- c(-1, 0, 1)
 continuous_curve_labels <- c("Low (-1 SD)", "Mean (0)", "High (+1 SD)")
 continuous_palette <- c("Low (-1 SD)" = "#2166AC", "Mean (0)" = "#4D4D4D", "High (+1 SD)" = "#B2182B")
+landuse_palette <- c(
+  "Forest" = "#2166AC",
+  "Mixed"  = "#4D4D4D",
+  "Human"  = "#B2182B"
+)
 response_colors <- c("Functional richness" = "#C51B32", "Taxonomic richness" = "#2878B5")
 random_effect_text <- "(1 + logTP_c || Dataset)"
 fit_control <- lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 2e5))
 
+# Helper Functions --------------------------------------------------------
 z_within_group <- function(x) {
   x <- as.numeric(x)
   keep <- is.finite(x)
@@ -130,10 +134,8 @@ fixed_effect_table <- function(model) {
   
   tibble(
     term = tab$term,
-    estimate = tab$Estimate,
-    standard_error = tab$`Std. Error`,
-    degrees_freedom = tab$df,
-    statistic = tab$`t value`,
+    estimate = tab$Estimate,     standard_error = tab$`Std. Error`,
+    degrees_freedom = tab$df,     statistic = tab$`t value`,
     p_value = p_vals,
     confidence_low = tab$Estimate - crit * tab$`Std. Error`,
     confidence_high = tab$Estimate + crit * tab$`Std. Error`
@@ -173,45 +175,71 @@ draw_key_ci_line <- function(data, params, size) {
   )
 }
 
+# Data Ingestion & Independent Subset Processing -------------------------
 dat_raw <- read_xlsx(input_file)
 
-dat <- dat_raw %>%
-  mutate(
-    across(c(Richness, FRic, TP, bio1_1500, bio4_1500, bio12_1500, bio15_1500, Elevation), as.numeric),
-    logTP = log(TP + 1),
-    Dataset = factor(Dataset),
-    Landuse_class = factor(Landuse_class)
-  ) %>%
-  filter(!is.na(Dataset), is.finite(TP), is.finite(logTP)) %>%
-  group_by(Dataset) %>%
-  mutate(
-    Richness_z = z_within_group(Richness),
-    FRic_z = z_within_group(FRic)
-  ) %>%
-  ungroup() %>%
-  mutate(
-    logTP_c = logTP - mean(logTP, na.rm = TRUE),
-    Temperature_z = z_global(bio1_1500),
-    Temperature_seasonality_z = z_global(bio4_1500),
-    Precipitation_z = z_global(bio12_1500),
-    Precipitation_seasonality_z = z_global(bio15_1500),
-    Elevation_z = z_global(Elevation)
+prepare_response_data <- function(raw_df, response_raw, response_z_name) {
+  sub_df <- raw_df %>%
+    mutate(
+      across(all_of(c(response_raw, "TP", "bio1_1500", "bio4_1500", "bio12_1500", "bio15_1500", "Elevation")), as.numeric),
+      logTP = log(TP + 1),
+      Dataset = factor(Dataset),
+      Landuse_class = factor(Landuse_class)
+    ) %>%
+    filter(
+      !is.na(Dataset),
+      is.finite(TP), is.finite(logTP),
+      is.finite(.data[[response_raw]]),
+      !is.na(Landuse_class), Landuse_class != "",
+      is.finite(bio1_1500), is.finite(bio4_1500),
+      is.finite(bio12_1500), is.finite(bio15_1500),
+      is.finite(Elevation)
+    )
+  
+  if ("Forest" %in% levels(sub_df$Landuse_class)) {
+    sub_df$Landuse_class <- stats::relevel(sub_df$Landuse_class, ref = "Forest")
+  }
+  
+  logTP_mean_val <- mean(sub_df$logTP, na.rm = TRUE)
+  
+  final_df <- sub_df %>%
+    group_by(Dataset) %>%
+    mutate(
+      !!response_z_name := z_within_group(.data[[response_raw]])
+    ) %>%
+    ungroup() %>%
+    mutate(
+      logTP_c = logTP - logTP_mean_val,
+      Temperature_z = z_global(bio1_1500),
+      Temperature_seasonality_z = z_global(bio4_1500),
+      Precipitation_z = z_global(bio12_1500),
+      Precipitation_seasonality_z = z_global(bio15_1500),
+      Elevation_z = z_global(Elevation)
+    )
+  
+  list(
+    data = final_df,
+    logTP_mean = logTP_mean_val
   )
-
-if ("Forest" %in% levels(dat$Landuse_class)) {
-  dat$Landuse_class <- stats::relevel(dat$Landuse_class, ref = "Forest")
 }
 
-global_logTP_mean <- mean(dat$logTP, na.rm = TRUE)
+richness_pack <- prepare_response_data(dat_raw, "Richness", "Richness_z")
+fric_pack     <- prepare_response_data(dat_raw, "FRic",     "FRic_z")
 
+dataset_packs <- list(
+  Richness_z = richness_pack,
+  FRic_z     = fric_pack
+)
+
+# Fit Final Additive Models on Response-Specific Subsets ------------------
 Richness_best <- lmer(
   Richness_z ~ logTP + I(logTP^2) + Landuse_class + bio1_1500 + bio12_1500 + bio15_1500 + Elevation + (1 + logTP || Dataset),
-  REML = FALSE, data = dat, na.action = stats::na.omit, control = fit_control
+  REML = FALSE, data = richness_pack$data, control = fit_control
 )
 
 FRic_best <- lmer(
   FRic_z ~ logTP + I(logTP^2) + Landuse_class + bio12_1500 + bio4_1500 + bio15_1500 + Elevation + (1 + logTP || Dataset),
-  REML = FALSE, data = dat, na.action = stats::na.omit, control = fit_control
+  REML = FALSE, data = fric_pack$data, control = fit_control
 )
 
 extract_additive_model <- function(model, model_name, response_label) {
@@ -239,8 +267,9 @@ additive_model_table <- bind_rows(
   extract_additive_model(FRic_best, "FRic_best", "Functional richness")
 )
 
-fit_moderator_models <- function(data, response, response_label, moderator, moderator_label, moderator_type) {
-  analysis_data <- data %>%
+# Fit Moderator Models on Respective Subsets -----------------------------
+fit_moderator_models <- function(data_pack, response, response_label, moderator, moderator_label, moderator_type) {
+  analysis_data <- data_pack$data %>%
     select(all_of(c(response, moderator, "logTP", "logTP_c", "Dataset"))) %>%
     drop_na() %>%
     droplevels()
@@ -306,6 +335,7 @@ fit_moderator_models <- function(data, response, response_label, moderator, mode
   list(
     analysis = analysis_id,
     data = analysis_data,
+    logTP_mean = data_pack$logTP_mean,
     base_model = m_base,
     linear_interaction_model = m_lin,
     quadratic_interaction_model = m_quad,
@@ -316,9 +346,9 @@ fit_moderator_models <- function(data, response, response_label, moderator, mode
 }
 
 moderator_combos <- tidyr::crossing(response_metadata, moderator_metadata)
-moderator_fits <- pmap(moderator_combos, function(response, response_label, moderator, moderator_label, moderator_type) {
+moderator_fits <- pmap(moderator_combos, function(response_raw, response, response_label, moderator, moderator_label, moderator_type) {
   message("Fitting: ", response_label, " × ", moderator_label)
-  fit_moderator_models(dat, response, response_label, moderator, moderator_label, moderator_type)
+  fit_moderator_models(dataset_packs[[response]], response, response_label, moderator, moderator_label, moderator_type)
 })
 names(moderator_fits) <- map_chr(moderator_fits, "analysis")
 
@@ -359,11 +389,13 @@ Table_S2 <- model_test_table %>%
     `FDR-adjusted P` = vapply(overall_interaction_p_FDR, format_p, character(1))
   )
 
+# Predictions & Visualization ---------------------------------------------
 make_prediction_data <- function(fit_object, moderator_type) {
   model <- fit_object$full_model
   analysis_data <- fit_object$data
   test_row <- fit_object$model_test
   moderator <- test_row$moderator
+  logTP_mean_val <- fit_object$logTP_mean
   
   if (moderator_type == "continuous") {
     prediction_grid <- tidyr::expand_grid(
@@ -376,17 +408,22 @@ make_prediction_data <- function(fit_object, moderator_type) {
     lvls <- levels(analysis_data[[moderator]])
     prediction_grid <- map_dfr(lvls, function(lvl) {
       sub_data <- filter(analysis_data, .data[[moderator]] == lvl)
+      tp_seq <- if (nrow(sub_data) > 0) {
+        seq(min(sub_data$logTP_c, na.rm = TRUE), max(sub_data$logTP_c, na.rm = TRUE), length.out = 200)
+      } else {
+        seq(min(analysis_data$logTP_c, na.rm = TRUE), max(analysis_data$logTP_c, na.rm = TRUE), length.out = 200)
+      }
       tibble(
-        logTP_c = seq(min(sub_data$logTP_c, na.rm = TRUE), max(sub_data$logTP_c, na.rm = TRUE), length.out = 200),
+        logTP_c = tp_seq,
         curve_level = factor(lvl, levels = lvls)
       )
     })
-    prediction_grid[[moderator]] <- prediction_grid$curve_level
+    prediction_grid[[moderator]] <- factor(prediction_grid$curve_level, levels = lvls)
   }
   
   fixed_prediction_ci(model, prediction_grid) %>%
     mutate(
-      logTP = logTP_c + global_logTP_mean,
+      logTP = logTP_c + logTP_mean_val,
       analysis = fit_object$analysis,
       response = test_row$response,
       response_label = test_row$response_label,
@@ -407,27 +444,47 @@ make_moderation_plot <- function(fit_object, corrected_test_row) {
   r2_txt <- if (is.finite(corrected_test_row$marginal_R2)) sprintf("%.3f", corrected_test_row$marginal_R2) else "NA"
   annot_txt <- paste0("Marginal R² = ", r2_txt, "\nFDR-adjusted P = ", format_p(corrected_test_row$overall_interaction_p_FDR))
   
-  if (corrected_test_row$moderator_type == "continuous") {
-    line_cols <- continuous_palette
-  } else {
+  is_cat <- (corrected_test_row$moderator_type == "factor")
+  
+  if (is_cat) {
+    p_data$curve_level <- droplevels(p_data$curve_level)
     lvls <- levels(p_data$curve_level)
-    line_cols <- stats::setNames(grDevices::colorRampPalette(c("#2166AC", "#4D4D4D", "#B2182B"))(length(lvls)), lvls)
+    line_cols <- if (all(lvls %in% names(landuse_palette))) {
+      landuse_palette[lvls]
+    } else {
+      stats::setNames(c("#2166AC", "#4D4D4D", "#B2182B")[seq_along(lvls)], lvls)
+    }
+  } else {
+    line_cols <- continuous_palette
   }
   
   ggplot() +
-    geom_ribbon(data = p_data, aes(x = logTP, ymin = conf_low, ymax = conf_high, fill = curve_level, group = curve_level),
+    geom_ribbon(data = p_data, 
+                aes(x = logTP, ymin = conf_low, ymax = conf_high, fill = curve_level, group = curve_level),
                 alpha = 0.16, colour = NA, show.legend = FALSE) +
-    geom_line(data = p_data, aes(x = logTP, y = predicted, colour = curve_level, group = curve_level),
+    geom_line(data = p_data, 
+              aes(x = logTP, y = predicted, colour = curve_level, group = curve_level),
               linewidth = 1.25, lineend = "round", key_glyph = draw_key_ci_line) +
     annotate("text", x = Inf, y = Inf, label = annot_txt, hjust = 1.04, vjust = 1.12, size = 3.4, lineheight = 1.08) +
-    scale_colour_manual(values = line_cols, name = NULL, drop = FALSE) +
-    scale_fill_manual(values = line_cols, name = NULL, drop = FALSE) +
-    coord_cartesian(ylim = c(-2, 2)) +
-    scale_y_continuous(breaks = seq(-2, 2, by = 1), expand = expansion(mult = c(0.02, 0.03))) +
-    labs(title = paste0("TP × ", corrected_test_row$moderator_label), x = "log(TP + 1)",
-         y = if (corrected_test_row$response == "Richness_z") "Z-Richness" else "Z-FRic") +
-    guides(fill = "none", colour = guide_legend(title = NULL, nrow = 1, byrow = TRUE,
-                                                keywidth = grid::unit(0.68, "cm"), keyheight = grid::unit(0.55, "cm"))) +
+    scale_colour_manual(values = line_cols, breaks = names(line_cols), name = NULL, drop = TRUE) +
+    scale_fill_manual(values = line_cols, breaks = names(line_cols), name = NULL, drop = TRUE) +
+    coord_cartesian(ylim = c(-2.5, 0.8)) +
+    scale_y_continuous(breaks = seq(-2.5, 0.8, by = 0.5), expand = expansion(mult = c(0.02, 0.03))) +
+    labs(
+      title = paste0("TP × ", corrected_test_row$moderator_label), 
+      x = "log(TP + 1)",
+      y = if (corrected_test_row$response == "Richness_z") "Z-Richness" else "Z-FRic"
+    ) +
+    guides(
+      fill = "none", 
+      colour = guide_legend(
+        title = NULL, 
+        nrow = 1, 
+        byrow = TRUE, 
+        keywidth = grid::unit(0.68, "cm"), 
+        keyheight = grid::unit(0.55, "cm")
+      )
+    ) +
     theme_classic(base_size = 12) +
     theme(
       plot.title = element_text(size = 12.5, hjust = 0.5, margin = margin(b = 5)),
@@ -453,8 +510,6 @@ if (length(prediction_plot_list) > 0L) {
     patchwork::plot_annotation(tag_levels = "a") &
     theme(plot.tag = element_text(size = 16, face = "bold"))
   
-  print(prediction_figure)
-  
   pred_rows <- ceiling(length(prediction_plot_list) / 2)
   ggsave(
     filename = file.path(output_dir, "FigureS3.png"),
@@ -463,6 +518,7 @@ if (length(prediction_plot_list) > 0L) {
   )
 }
 
+# Forest Plot -------------------------------------------------------------
 effect_order <- c(
   "Annual mean temperature", "Temperature seasonality", "Annual precipitation",
   "Precipitation seasonality", "Elevation", "Land use: Mixed vs Forest", "Land use: Human vs Forest"
@@ -529,14 +585,13 @@ interaction_forest <- ggplot(forest_data, aes(colour = response_label)) +
   ) +
   guides(colour = guide_legend(order = 1), shape = guide_legend(order = 2, title.position = "top"))
 
-print(interaction_forest)
-
 ggsave(
   filename = file.path(output_dir, "Figure6.png"),
   plot = interaction_forest,
   width = 10, height = 5, units = "in", dpi = 600, bg = "white", limitsize = FALSE
 )
 
+# Export Tables & Sub-panels ----------------------------------------------
 openxlsx::write.xlsx(
   list(
     Final_additive_models = additive_model_table,
@@ -555,3 +610,42 @@ openxlsx::write.xlsx(
   file = file.path(output_dir, "Table S2.xlsx"),
   overwrite = TRUE
 )
+
+s3_subfolder <- file.path(output_dir, "FigureS3_panels")
+dir.create(s3_subfolder, showWarnings = FALSE, recursive = TRUE)
+
+if (nrow(fdr_supported_table) > 0L) {
+  tag_labels <- letters[seq_len(nrow(fdr_supported_table))]
+  
+  purrr::pwalk(
+    list(
+      row_idx = seq_len(nrow(fdr_supported_table)),
+      id = fdr_supported_table$analysis,
+      tag = tag_labels
+    ),
+    function(row_idx, id, tag) {
+      test_row <- fdr_supported_table[row_idx, ]
+      fit_obj <- moderator_fits[[id]]
+      
+      p_single <- make_moderation_plot(fit_obj, test_row) +
+        labs(tag = tag) +
+        theme(
+          plot.tag = element_text(size = 16, face = "bold"),
+          plot.margin = margin(10, 15, 10, 10)
+        )
+      
+      safe_analysis_name <- gsub("[^A-Za-z0-9_-]", "_", id)
+      file_path <- file.path(s3_subfolder, sprintf("FigureS3_%s_%s.png", tag, safe_analysis_name))
+      
+      ggsave(
+        filename = file_path,
+        plot = p_single,
+        width = 5.2,
+        height = 4.4,
+        units = "in",
+        dpi = 600,
+        bg = "white"
+      )
+    }
+  )
+}
