@@ -23,7 +23,7 @@ Some raw datasets were derived from the following sources:
 
 Additional datasets were contributed by collaborators and are subject to their respective data-sharing agreements.
 
-<img width="957" height="532" alt="Fig 2" src="https://github.com/user-attachments/assets/dd200a44-0950-46a2-98db-60c20a723d40" />
+<img width="700"  alt="Fig 2" src="https://github.com/user-attachments/assets/dd200a44-0950-46a2-98db-60c20a723d40" />
 
 ## Reproducibility
 
