@@ -25,4 +25,4 @@ The scripts in `000_scripts/` reproduce the analyses, figures, and tables presen
 
 ## Citation
 
-The associated manuscript is currently under review in Communications earth and environment. Citation and DOI details are pending.
+Liu, G., Graco-Roza, C., Liao, W., Martin-Devasa, R., Castaneda Gomez, L., Teittinen, A., Qi, X., Li, Y., Qu, X., Kokocinski, M., Wu, N. & Soininen, J. 2026. Functional diversity complements taxonomical diversity in productivity-biodiversity relationships in freshwaters. Communications Earth & Environment. https://doi.org/10.1038/s43247-026-04169-5
