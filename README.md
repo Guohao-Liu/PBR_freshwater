@@ -5,7 +5,7 @@
 This repository supports a global-scale study of biodiversity–productivity relationships (BPRs) across freshwater ecosystems. We compiled 78 harmonized datasets spanning over 30,000 sites from lakes and rivers, representing six aquatic taxonomic groups: phytoplankton, benthic diatoms, aquatic plants, zooplankton, macroinvertebrates, and fish. Each dataset includes species indidence data, functional trait information, geographic coordinates, and environmental variables, especially total phosphorus (TP). Data sources include publicly available databases, such as Distance Decay 2.0, National Aquatic Resource Surveys, and the Stream Diatom Dataset, as well as contributed unpublished datasets.
 
 <div align="center">
-<img width="744" height="354" alt="image" src="https://github.com/user-attachments/assets/8896dcad-7309-461d-b2a1-9157abe719d5" />
+<img width="758" height="360" alt="image" src="https://github.com/user-attachments/assets/226919ae-9a15-4bf6-aa1c-9ae6fc2d3858" />
 </div>
 
 ## Repository structure
